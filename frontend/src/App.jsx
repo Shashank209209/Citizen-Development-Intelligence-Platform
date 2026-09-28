@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth, useToast } from './context'
 import LoginPage from './pages/LoginPage'
 import CitizenInputPage from './pages/CitizenInputPage'
@@ -10,14 +10,17 @@ import TrackPage from './pages/TrackPage'
 export default function App() {
   const { user, logout } = useAuth()
   const toast = useToast()
-  const [currentPage, setCurrentPage] = useState('submit')
+  const isPolicymaker = user && ['policymaker', 'analyst'].includes(user.role)
+  const [currentPage, setCurrentPage] = useState(() => isPolicymaker ? 'dashboard' : 'submit')
+
+  useEffect(() => {
+    setCurrentPage(isPolicymaker ? 'dashboard' : 'submit')
+  }, [isPolicymaker])
 
   if (!user) return <LoginPage />
 
-  const isPolicymaker = ['policymaker', 'analyst'].includes(user.role)
-
   const nav = [
-    { id: 'submit', label: '📝 Submit Request', show: true },
+    { id: 'submit', label: '📝 Submit Request', show: !isPolicymaker },
     { id: 'track', label: '🔎 Track Request', show: true, dataProp: 'data-tab' },
     { id: 'dashboard', label: '🗺️ Dashboard', show: isPolicymaker },
     { id: 'impact', label: '📈 Impact', show: isPolicymaker },

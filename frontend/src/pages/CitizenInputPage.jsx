@@ -129,6 +129,9 @@ export default function CitizenInputPage() {
   const [selectedLang, setSelectedLang] = useState('en')
   const [inputMode, setInputMode] = useState('text') // text | voice | chat
   const [textInput, setTextInput] = useState('')
+  const [imageData, setImageData] = useState(null)
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [extraction, setExtraction] = useState(null)
   const [submittedCode, setSubmittedCode] = useState(null)
@@ -146,6 +149,36 @@ export default function CitizenInputPage() {
   }, [chatMessages])
 
   const lang = LANGUAGES[selectedLang]
+
+  const handleImageSelect = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast('Please upload a JPG, PNG, or WebP image', 'error')
+      event.target.value = ''
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast('Image must be 5 MB or smaller', 'error')
+      event.target.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const value = String(reader.result)
+      setImageData(value.split(',')[1] || '')
+      setImageFile(file)
+      setImagePreview(value)
+      setExtraction(null)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setImageData(null)
+    setImageFile(null)
+    setImagePreview('')
+  }
 
   const handleLangSelect = (code) => {
     setSelectedLang(code)
@@ -171,6 +204,9 @@ export default function CitizenInputPage() {
       const res = await api.submitRequest({
         text: textInput,
         language_override: selectedLang,
+        image_data: imageData,
+        image_mime_type: imageFile?.type,
+        image_filename: imageFile?.name,
         channel: inputMode === 'chat' ? 'messaging_chat' : inputMode === 'voice' ? 'voice_audio' : 'web_form'
       })
       if (res.flagged && res.spam_score > 0.8) {
@@ -238,7 +274,7 @@ export default function CitizenInputPage() {
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>Save this code to track status of your request</p>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <button className="btn btn-primary" onClick={() => { setSubmittedCode(null); setTextInput('') }}>Submit Another</button>
+          <button className="btn btn-primary" onClick={() => { setSubmittedCode(null); setTextInput(''); removeImage() }}>Submit Another</button>
           <button className="btn btn-ghost" onClick={() => { document.querySelector('[data-tab="track"]')?.click() }}>Track Request</button>
         </div>
       </div>
@@ -284,6 +320,23 @@ export default function CitizenInputPage() {
                 {label}
               </button>
             ))}
+          </div>
+
+          <div className="image-upload-panel">
+            <div>
+              <label className="form-label" htmlFor="problem-image">📷 Add a photo of the problem <span style={{ color: 'var(--text-muted)' }}>(optional)</span></label>
+              <p className="image-upload-help">Available in text, voice, and chat mode. JPG, PNG, or WebP up to 5 MB.</p>
+            </div>
+            <input id="problem-image" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} />
+            {imagePreview && (
+              <div className="image-preview-row">
+                <img src={imagePreview} alt="Selected evidence preview" className="image-preview" />
+                <div>
+                  <div className="image-file-name">{imageFile?.name}</div>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={removeImage}>Remove photo</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* TEXT MODE */}

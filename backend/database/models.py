@@ -14,6 +14,9 @@ class CitizenRequestModel(Base):
     original_text = Column(Text, nullable=False)
     original_script = Column(String(32), default="Latin")
     translated_text = Column(Text, nullable=False)
+    image_data = Column(Text, nullable=True)  # Base64 image evidence; optional and size-limited by API
+    image_mime_type = Column(String(64), nullable=True)
+    image_filename = Column(String(256), nullable=True)
     
     # Classification & Location
     category_id = Column(String(64), index=True)

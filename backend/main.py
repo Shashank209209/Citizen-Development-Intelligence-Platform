@@ -103,6 +103,9 @@ class SubmitRequestBody(BaseModel):
     text: Optional[str] = None
     audio_data: Optional[str] = None  # base64
     mime_type: Optional[str] = "audio/webm"
+    image_data: Optional[str] = None  # base64 image evidence
+    image_mime_type: Optional[str] = None
+    image_filename: Optional[str] = None
     language_override: Optional[str] = None
     location_hint: Optional[str] = None
     channel: Optional[str] = "web_form"
@@ -111,6 +114,12 @@ class SubmitRequestBody(BaseModel):
 @app.post("/api/requests", tags=["Citizen Requests"])
 def submit_request(body: SubmitRequestBody, db: Session = Depends(get_db)):
     raw_text = (body.text or "").strip()
+
+    if body.image_data:
+        if body.image_mime_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise HTTPException(status_code=415, detail="Only JPG, PNG, and WebP images are supported")
+        if len(body.image_data) > 7_000_000:
+            raise HTTPException(status_code=413, detail="Image must be 5 MB or smaller")
 
     # Spam / duplicate detection
     flagged, spam_score, spam_reason = spam_detector.check_request(raw_text, body.session_id or "anon")
@@ -146,6 +155,9 @@ def submit_request(body: SubmitRequestBody, db: Session = Depends(get_db)):
         original_text=result.original_text,
         original_script=result.original_script,
         translated_text=result.translated_text,
+        image_data=body.image_data,
+        image_mime_type=body.image_mime_type,
+        image_filename=body.image_filename,
         category_id=result.category_id,
         category_name=result.extracted_category,
         extracted_location_text=result.extracted_location_text,
@@ -222,6 +234,7 @@ def submit_request(body: SubmitRequestBody, db: Session = Depends(get_db)):
         "flagged": flagged,
         "spam_score": spam_score,
         "extraction": result.dict(),
+        "image_attached": bool(body.image_data),
         "status": "UNDER_ANALYSIS",
         "message": "Your request has been received and is being analyzed."
     }
@@ -318,7 +331,8 @@ def list_requests(
          "original_language": r.original_language, "category_name": r.category_name,
          "district": r.district, "state": r.state, "urgency_level": r.urgency_level,
          "status": r.status, "created_at": r.created_at.isoformat() if r.created_at else None,
-         "language_confidence": r.language_confidence, "category_confidence": r.category_confidence}
+         "language_confidence": r.language_confidence, "category_confidence": r.category_confidence,
+         "image_attached": bool(r.image_data), "image_filename": r.image_filename}
         for r in rows
     ]}
 

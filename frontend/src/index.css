@@ -208,6 +208,19 @@ body {
 }
 .input-mode-tab.active { background: var(--bg-card); color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
 
+/* ============================================================ Evidence Upload */
+.image-upload-panel {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; margin-bottom: 20px;
+  background: var(--bg-elevated); border: 1px dashed var(--border-accent);
+  border-radius: var(--radius-sm);
+}
+.image-upload-help { font-size: 11px; color: var(--text-muted); }
+.image-upload-panel input[type="file"] { color: var(--text-secondary); font-size: 12px; }
+.image-preview-row { display: flex; align-items: center; gap: 12px; }
+.image-preview { width: 88px; height: 68px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.image-file-name { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; word-break: break-all; }
+
 /* ============================================================ Voice Recorder */
 .voice-recorder {
   display: flex; flex-direction: column; align-items: center; gap: 20px;

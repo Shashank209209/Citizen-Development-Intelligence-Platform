@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import ImpactPage from './pages/ImpactPage'
 import EvaluationPage from './pages/EvaluationPage'
 import TrackPage from './pages/TrackPage'
+import { Landmark } from 'lucide-react'
 
 export default function App() {
   const { user, logout } = useAuth()
@@ -31,9 +32,9 @@ export default function App() {
     <div className="app">
       <nav className="nav">
         <a className="nav-logo" href="#">
-          <div className="logo-icon">🇮🇳</div>
+          <div className="logo-icon"><Landmark size={17} strokeWidth={2.2} /></div>
           <span>CDIP</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>India Prototype</span>
+          <span className="nav-product-name">Citizen Development Intelligence</span>
         </a>
 
         <div className="nav-tabs">

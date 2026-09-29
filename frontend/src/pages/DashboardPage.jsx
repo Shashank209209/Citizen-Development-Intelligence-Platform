@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../api'
 import { SECTOR_META, SEVERITY_META } from '../constants'
@@ -19,6 +19,22 @@ function MiniBarChart({ data, colorKey = 'color', labelKey = 'name', valueKey = 
       ))}
     </div>
   )
+}
+
+function CountUp({ value }) {
+  const [displayValue, setDisplayValue] = useState(0)
+  useEffect(() => {
+    let frame
+    const started = performance.now()
+    const animate = (now) => {
+      const progress = Math.min((now - started) / 650, 1)
+      setDisplayValue(Math.round(value * (1 - (1 - progress) ** 3)))
+      if (progress < 1) frame = requestAnimationFrame(animate)
+    }
+    frame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(frame)
+  }, [value])
+  return displayValue
 }
 
 function PriorityRing({ score, size = 72 }) {
@@ -68,8 +84,15 @@ function HotspotMap({ hotspots }) {
             key={h.id}
             center={[h.lat, h.lng]}
             radius={radius}
-            pathOptions={{ color: statusColor, fillColor: statusColor, fillOpacity: 0.5 }}
+            pathOptions={{ color: statusColor, fillColor: statusColor, fillOpacity: 0.5, className: `hotspot-marker hotspot-${h.severity.toLowerCase()}` }}
           >
+            <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+              <div className="hotspot-tooltip">
+                <strong>{h.district}, {h.state}</strong>
+                <span>{sector.icon || '📍'} {h.sector_name}</span>
+                <span><b style={{ color: statusColor }}>{h.severity}</b> · Priority {h.priority_score}/100</span>
+              </div>
+            </Tooltip>
             <Popup>
               <strong>{sector.icon || '📍'} {h.district}, {h.state}</strong><br />
               {h.sector_name}<br />
@@ -299,19 +322,19 @@ export default function DashboardPage() {
         <div className="fade-in">
           <div className="grid-4" style={{ marginBottom: 24 }}>
             <div className="stat-card">
-              <div className="stat-value">{totalRequests}</div>
+              <div className="stat-value"><CountUp value={totalRequests} /></div>
               <div className="stat-label">Citizen Requests (Synthetic)</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--danger)' }}>{criticalHotspots}</div>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}><CountUp value={criticalHotspots} /></div>
               <div className="stat-label">Critical Hotspots</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--accent)' }}>{hotspots.length}</div>
+              <div className="stat-value" style={{ color: 'var(--accent)' }}><CountUp value={hotspots.length} /></div>
               <div className="stat-label">Active Hotspots</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--success)' }}>{adoptedRecs}</div>
+              <div className="stat-value" style={{ color: 'var(--success)' }}><CountUp value={adoptedRecs} /></div>
               <div className="stat-label">Recommendations Adopted</div>
             </div>
           </div>

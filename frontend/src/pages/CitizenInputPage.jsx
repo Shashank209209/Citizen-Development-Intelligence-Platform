@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { LANGUAGES, SAMPLE_PROMPTS, SECTOR_META } from '../constants'
 import { api } from '../api'
 import { useToast } from '../context'
+import { Copy, Download } from 'lucide-react'
 
 function ConfidenceBar({ value, color = 'var(--accent)' }) {
   return (
@@ -140,13 +141,14 @@ export default function CitizenInputPage() {
   const [chatMessages, setChatMessages] = useState([
     { role: 'bot', text: '🙏 Namaste! I am the CitizenConnect assistant. Please describe your development concern — in your preferred language. Type or use the mic. (यहाँ हिन्दी में भी लिख सकते हैं / ಕನ್ನಡದಲ್ಲಿ ಬರೆಯಿರಿ)', time: new Date() }
   ])
+  const [chatTyping, setChatTyping] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const timerRef = useRef(null)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMessages])
+  }, [chatMessages, chatTyping])
 
   const lang = LANGUAGES[selectedLang]
 
@@ -245,9 +247,10 @@ export default function CitizenInputPage() {
   }
 
   const sendChatMessage = async () => {
-    if (!chatInput.trim()) return
+    if (!chatInput.trim() || chatTyping) return
     const userMsg = chatInput; setChatInput('')
     setChatMessages(prev => [...prev, { role: 'user', text: userMsg, time: new Date() }])
+    setChatTyping(true)
     setTimeout(async () => {
       try {
         const res = await api.previewExtraction({ text: userMsg, language_override: selectedLang })
@@ -258,8 +261,32 @@ export default function CitizenInputPage() {
         setTextInput(userMsg)
       } catch {
         setChatMessages(prev => [...prev, { role: 'bot', text: 'Sorry, I couldn\'t process that. Please try again or switch to text mode.', time: new Date() }])
+      } finally {
+        setChatTyping(false)
       }
     }, 800)
+  }
+
+  const copyTrackingCode = async () => {
+    try {
+      await navigator.clipboard.writeText(submittedCode)
+      toast('Tracking code copied to clipboard', 'success')
+    } catch {
+      toast('Could not copy the tracking code. Please select and copy it manually.', 'error')
+    }
+  }
+
+  const saveTrackingCode = () => {
+    const file = new Blob([`CDIP request tracking code: ${submittedCode}\n`], { type: 'text/plain' })
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `cdip-tracking-${submittedCode}.txt`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    toast('Tracking code saved as a text file', 'success')
   }
 
   if (submittedCode) return (
@@ -272,6 +299,10 @@ export default function CitizenInputPage() {
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>TRACKING CODE</p>
           <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', letterSpacing: 2 }}>{submittedCode}</p>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>Save this code to track status of your request</p>
+          <div className="tracking-code-actions">
+            <button className="btn btn-ghost btn-sm" onClick={copyTrackingCode}><Copy size={14} /> Copy code</button>
+            <button className="btn btn-ghost btn-sm" onClick={saveTrackingCode}><Download size={14} /> Save code</button>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <button className="btn btn-primary" onClick={() => { setSubmittedCode(null); setTextInput(''); removeImage() }}>Submit Another</button>
@@ -415,6 +446,7 @@ export default function CitizenInputPage() {
                       <div className="meta">{m.time.toLocaleTimeString()}</div>
                     </div>
                   ))}
+                  {chatTyping && <div className="chat-bubble bot typing-indicator" role="status" aria-label="Assistant is preparing a reply"><span /><span /><span /></div>}
                   <div ref={chatEndRef} />
                 </div>
                 <div className="chat-input-row">
@@ -422,7 +454,7 @@ export default function CitizenInputPage() {
                     onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
                     placeholder={`Type in ${lang.nativeName}…`}
                     style={{ fontFamily: lang.font, direction: lang.dir }} id="chat-input" />
-                  <button className="btn btn-primary btn-sm" onClick={sendChatMessage} id="btn-chat-send">Send</button>
+                  <button className="btn btn-primary btn-sm" onClick={sendChatMessage} disabled={chatTyping || !chatInput.trim()} id="btn-chat-send">Send</button>
                 </div>
               </div>
             </>

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { useAuth, useToast } from '../context'
-import { ArrowRight, BarChart3, Languages, Landmark, MapPinned, ShieldCheck } from 'lucide-react'
+import { ArrowRight, BarChart3, Languages, Landmark, MapPinned, Moon, ShieldCheck, Sun } from 'lucide-react'
 
-export default function LoginPage() {
+export default function LoginPage({ theme, onToggleTheme }) {
   const { login } = useAuth()
   const toast = useToast()
   const [email, setEmail] = useState('policy@demo.in')
@@ -31,10 +31,15 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <button className="btn btn-ghost btn-sm theme-toggle login-theme-toggle" onClick={onToggleTheme}
+        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
       <section className="login-story">
-        <div className="login-brand"><span className="login-brand-mark"><Landmark size={20} /></span> CDIP <span className="login-brand-tag">PUBLIC SERVICE INTELLIGENCE</span></div>
+        <div className="login-brand"><span className="login-brand-mark"><Landmark size={20} /></span> BharatPulse <span className="login-brand-tag">PUBLIC SERVICE INTELLIGENCE</span></div>
         <div className="login-story-content">
-          <span className="login-eyebrow"><span className="pulse-dot" /> A civic signal, made actionable</span>
+          <span className="login-eyebrow"><span className="pulse-dot" /> Sensing what India needs, where it needs it</span>
           <h1>Hear local needs.<br /><span>Plan with evidence.</span></h1>
           <p>Multilingual citizen input, transparent demand signals, and human-led development decisions in one place.</p>
           <div className="login-visual" aria-hidden="true">

@@ -3,7 +3,7 @@ FastAPI Main Application — Citizen Development Intelligence Platform
 Digital Public Good Prototype — India Adapter
 """
 import uuid, datetime, random
-from fastapi import FastAPI, Depends, HTTPException, status, Body
+from fastapi import FastAPI, Depends, HTTPException, status, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -553,3 +553,48 @@ def receive_channel_webhook(channel_name: str, payload: Dict[str, Any] = Body(..
 @app.get("/api/health", tags=["System"])
 def health():
     return {"status": "ok", "platform": settings.PROJECT_NAME, "version": settings.VERSION, "data_disclaimer": "All datasets are synthetic demo data."}
+
+
+@app.get("/api/location/reverse", tags=["Reference Data"])
+def reverse_location(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+):
+    import json
+    from urllib.error import URLError
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    params = urlencode({
+        "lat": latitude,
+        "lon": longitude,
+        "format": "json",
+        "zoom": 18,
+        "addressdetails": 1,
+    })
+    request = Request(
+        f"https://nominatim.openstreetmap.org/reverse?{params}",
+        headers={"User-Agent": "CitizenDevelopmentIntelligencePlatform/1.0"},
+    )
+
+    try:
+        with urlopen(request, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except (URLError, TimeoutError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=502, detail="Location lookup is temporarily unavailable") from error
+
+    address = data.get("address", {})
+    area = (
+        address.get("village")
+        or address.get("town")
+        or address.get("city")
+        or address.get("municipality")
+        or address.get("county")
+        or ""
+    )
+    return {
+        "area": area,
+        "display_name": data.get("display_name", ""),
+        "state": address.get("state", ""),
+        "district": address.get("state_district", ""),
+    }

@@ -18,6 +18,15 @@ export const api = {
   previewExtraction: (body) =>
     fetch(`${API_BASE}/ai/process`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(r => r.json()),
 
+  reverseLocation: (latitude, longitude) => {
+    const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) })
+    return fetch(`${API_BASE}/location/reverse?${params}`, { headers: getHeaders() }).then(async response => {
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Location lookup failed')
+      return data
+    })
+  },
+
   trackRequest: (code) =>
     fetch(`${API_BASE}/requests/${code}`, { headers: getHeaders() }).then(r => r.json()),
 

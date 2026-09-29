@@ -6,11 +6,12 @@ import DashboardPage from './pages/DashboardPage'
 import ImpactPage from './pages/ImpactPage'
 import EvaluationPage from './pages/EvaluationPage'
 import TrackPage from './pages/TrackPage'
-import { Landmark } from 'lucide-react'
+import { Landmark, Moon, Sun } from 'lucide-react'
 
 export default function App() {
   const { user, logout } = useAuth()
   const toast = useToast()
+  const [theme, setTheme] = useState(() => localStorage.getItem('cdip_theme') === 'dark' ? 'dark' : 'light')
   const isPolicymaker = user && ['policymaker', 'analyst'].includes(user.role)
   const [currentPage, setCurrentPage] = useState(() => isPolicymaker ? 'dashboard' : 'submit')
 
@@ -18,7 +19,15 @@ export default function App() {
     setCurrentPage(isPolicymaker ? 'dashboard' : 'submit')
   }, [isPolicymaker])
 
-  if (!user) return <LoginPage />
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.documentElement.style.colorScheme = theme
+    localStorage.setItem('cdip_theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme(current => current === 'dark' ? 'light' : 'dark')
+
+  if (!user) return <LoginPage theme={theme} onToggleTheme={toggleTheme} />
 
   const nav = [
     { id: 'submit', label: '📝 Submit Request', show: !isPolicymaker },
@@ -33,7 +42,7 @@ export default function App() {
       <nav className="nav">
         <a className="nav-logo" href="#">
           <div className="logo-icon"><Landmark size={17} strokeWidth={2.2} /></div>
-          <span>CDIP</span>
+          <span>BharatPulse</span>
           <span className="nav-product-name">Citizen Development Intelligence</span>
         </a>
 
@@ -47,6 +56,11 @@ export default function App() {
         </div>
 
         <div className="nav-right">
+          <button className="btn btn-ghost btn-sm theme-toggle" onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
           <span className="nav-badge">
             {user.role === 'policymaker' ? '🏛️ Policymaker' : user.role === 'analyst' ? '📊 Analyst' : '👤 Citizen'}
           </span>
@@ -75,7 +89,7 @@ export default function App() {
 
       <footer style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-          CDIP — Citizen Development Intelligence Platform · India Prototype · Digital Public Good (DPG) · License: Apache-2.0
+          BharatPulse — Citizen Development Intelligence Platform · India Prototype · Digital Public Good (DPG) · License: Apache-2.0
         </span>
         <span style={{ fontSize: 11, color: 'var(--warning)' }}>
           ⚠️ All datasets are synthetic. No real government integration. Decision-support only.

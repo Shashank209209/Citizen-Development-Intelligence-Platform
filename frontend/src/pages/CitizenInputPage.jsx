@@ -138,8 +138,15 @@ export default function CitizenInputPage() {
   const [submittedCode, setSubmittedCode] = useState(null)
   const [recording, setRecording] = useState(false)
   const [recordTime, setRecordTime] = useState(0)
+  const [chatStep, setChatStep] = useState('category')
+  const [chatCategory, setChatCategory] = useState('')
+  const [chatDescription, setChatDescription] = useState('')
+  const [chatLocation, setChatLocation] = useState('')
+  const [chatUrgency, setChatUrgency] = useState('')
+  const [locationStatus, setLocationStatus] = useState('idle')
+  const [detectedArea, setDetectedArea] = useState('')
   const [chatMessages, setChatMessages] = useState([
-    { role: 'bot', text: '🙏 Namaste! I am the CitizenConnect assistant. Please describe your development concern — in your preferred language. Type or use the mic. (यहाँ हिन्दी में भी लिख सकते हैं / ಕನ್ನಡದಲ್ಲಿ ಬರೆಯಿರಿ)', time: new Date() }
+    { role: 'bot', text: '🙏 Namaste! I am the CitizenConnect assistant. Choose a category to start, or switch to free-text chat. (यहाँ हिन्दी में भी लिख सकते हैं / ಕನ್ನಡದಲ್ಲಿ ಬರೆಯಿರಿ)', time: new Date() }
   ])
   const [chatTyping, setChatTyping] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -172,6 +179,13 @@ export default function CitizenInputPage() {
       setImageFile(file)
       setImagePreview(value)
       setExtraction(null)
+      if (inputMode === 'chat' && chatStep === 'photo') {
+        setChatStep('review')
+        setChatMessages(prev => [...prev,
+          { role: 'user', text: '📷 Photo added', time: new Date() },
+          { role: 'bot', text: 'Your photo is attached. Review your report when ready.', time: new Date() }
+        ])
+      }
     }
     reader.readAsDataURL(file)
   }
@@ -192,7 +206,11 @@ export default function CitizenInputPage() {
     if (!textInput.trim()) return toast('Please enter a description', 'error')
     setLoading(true)
     try {
-      const res = await api.previewExtraction({ text: textInput, language_override: selectedLang })
+      const res = await api.previewExtraction({
+        text: textInput,
+        language_override: selectedLang,
+        location_hint: inputMode === 'chat' ? chatLocation : undefined
+      })
       setExtraction(res.extraction)
     } catch {
       toast('Preview failed — is the backend running?', 'error')
@@ -200,12 +218,13 @@ export default function CitizenInputPage() {
     setLoading(false)
   }
 
-  const handleConfirmSubmit = async (corrections = {}) => {
+  const handleConfirmSubmit = async (corrections = {}, requestText = null, locationHint = null) => {
     setLoading(true)
     try {
       const res = await api.submitRequest({
-        text: textInput,
+        text: requestText ?? textInput,
         language_override: selectedLang,
+        location_hint: locationHint || (inputMode === 'chat' ? chatLocation : undefined),
         image_data: imageData,
         image_mime_type: imageFile?.type,
         image_filename: imageFile?.name,
@@ -267,6 +286,95 @@ export default function CitizenInputPage() {
     }, 800)
   }
 
+  const appendChatExchange = (userText, botText) => {
+    setChatMessages(prev => [...prev,
+      { role: 'user', text: userText, time: new Date() },
+      { role: 'bot', text: botText, time: new Date() }
+    ])
+  }
+
+  const chooseChatCategory = (categoryId) => {
+    const category = SECTOR_META[categoryId]
+    setChatCategory(categoryId)
+    setChatStep('description')
+    appendChatExchange(category.name, 'Please describe the problem in a few words.')
+  }
+
+  const submitChatDescription = () => {
+    if (!chatDescription.trim()) return
+    setChatStep('location')
+    appendChatExchange(chatDescription.trim(), 'Where is this problem located? Enter a village, town, area, or district, or choose location access.')
+  }
+
+  const submitChatLocation = () => {
+    if (!chatLocation.trim()) return
+    setChatStep('urgency')
+    appendChatExchange(chatLocation.trim(), 'How urgent is this problem?')
+  }
+
+  const requestCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('unavailable')
+      return
+    }
+    setLocationStatus('requesting')
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        const result = await api.reverseLocation(coords.latitude, coords.longitude)
+        const place = [result.area, result.district, result.state].filter(Boolean).join(', ') || result.display_name
+        setDetectedArea(place)
+        setLocationStatus(place ? 'success' : 'unavailable')
+      } catch {
+        setLocationStatus('unavailable')
+      }
+    }, () => setLocationStatus('denied'), { timeout: 10000, maximumAge: 300000 })
+  }
+
+  const useDetectedLocation = () => {
+    if (!detectedArea) return
+    setChatLocation(detectedArea)
+    setChatStep('urgency')
+    appendChatExchange(`📍 ${detectedArea}`, 'How urgent is this problem?')
+  }
+
+  const chooseChatUrgency = (urgency) => {
+    setChatUrgency(urgency)
+    setChatStep('photo')
+    appendChatExchange(urgency, 'Would you like to attach a photo?')
+  }
+
+  const previewGuidedReport = async () => {
+    const category = SECTOR_META[chatCategory]
+    const reportText = `${category.name}: ${chatDescription.trim()}. Location: ${chatLocation.trim()}. Urgency: ${chatUrgency}.`
+    setTextInput(reportText)
+    setLoading(true)
+    try {
+      const result = await api.previewExtraction({
+        text: reportText,
+        language_override: selectedLang,
+        location_hint: chatLocation.trim()
+      })
+      setExtraction(result.extraction)
+    } catch {
+      toast('Preview failed — is the backend running?', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resetGuidedChat = () => {
+    setChatStep('category')
+    setChatCategory('')
+    setChatDescription('')
+    setChatLocation('')
+    setChatUrgency('')
+    setLocationStatus('idle')
+    setDetectedArea('')
+    setChatMessages([
+      { role: 'bot', text: '🙏 Namaste! I am the CitizenConnect assistant. Choose a category to start, or switch to free-text chat.', time: new Date() }
+    ])
+  }
+
   const copyTrackingCode = async () => {
     try {
       await navigator.clipboard.writeText(submittedCode)
@@ -277,11 +385,11 @@ export default function CitizenInputPage() {
   }
 
   const saveTrackingCode = () => {
-    const file = new Blob([`CDIP request tracking code: ${submittedCode}\n`], { type: 'text/plain' })
+    const file = new Blob([`BharatPulse request tracking code: ${submittedCode}\n`], { type: 'text/plain' })
     const url = URL.createObjectURL(file)
     const link = document.createElement('a')
     link.href = url
-    link.download = `cdip-tracking-${submittedCode}.txt`
+    link.download = `bharatpulse-tracking-${submittedCode}.txt`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -305,7 +413,7 @@ export default function CitizenInputPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <button className="btn btn-primary" onClick={() => { setSubmittedCode(null); setTextInput(''); removeImage() }}>Submit Another</button>
+          <button className="btn btn-primary" onClick={() => { setSubmittedCode(null); setTextInput(''); removeImage(); resetGuidedChat() }}>Submit Another</button>
           <button className="btn btn-ghost" onClick={() => { document.querySelector('[data-tab="track"]')?.click() }}>Track Request</button>
         </div>
       </div>
@@ -437,27 +545,124 @@ export default function CitizenInputPage() {
 
           {/* CHAT MODE */}
           {inputMode === 'chat' && (
-            <>
+            <div className="chat-guided">
+              {chatStep !== 'freeform' && (
+                <div className="chat-stepper" aria-label={`Report step ${['category', 'description', 'location', 'urgency', 'photo', 'review'].indexOf(chatStep) + 1} of 6`}>
+                  {['category', 'description', 'location', 'urgency', 'photo', 'review'].map((step, index) => (
+                    <span key={step} className={`chat-step-dot ${['category', 'description', 'location', 'urgency', 'photo', 'review'].indexOf(chatStep) >= index ? 'complete' : ''}`} />
+                  ))}
+                  <span className="chat-step-label">Step {['category', 'description', 'location', 'urgency', 'photo', 'review'].indexOf(chatStep) + 1} of 6 · {chatStep === 'photo' ? 'Photo' : chatStep[0].toUpperCase() + chatStep.slice(1)}</span>
+                </div>
+              )}
+
               <div className="chat-container">
                 <div className="chat-messages" id="chat-messages">
-                  {chatMessages.map((m, i) => (
-                    <div key={i} className={`chat-bubble ${m.role}`}>
-                      <div style={{ fontFamily: m.role === 'user' ? lang.font : 'inherit', whiteSpace: 'pre-line' }}>{m.text}</div>
-                      <div className="meta">{m.time.toLocaleTimeString()}</div>
+                  {chatMessages.map((message, index) => (
+                    <div key={index} className={`chat-bubble ${message.role}`}>
+                      <div style={{ fontFamily: message.role === 'user' ? lang.font : 'inherit', whiteSpace: 'pre-line' }}>{message.text}</div>
+                      <div className="meta">{message.time.toLocaleTimeString()}</div>
                     </div>
                   ))}
                   {chatTyping && <div className="chat-bubble bot typing-indicator" role="status" aria-label="Assistant is preparing a reply"><span /><span /><span /></div>}
                   <div ref={chatEndRef} />
                 </div>
-                <div className="chat-input-row">
-                  <input className="chat-input" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
-                    placeholder={`Type in ${lang.nativeName}…`}
-                    style={{ fontFamily: lang.font, direction: lang.dir }} id="chat-input" />
-                  <button className="btn btn-primary btn-sm" onClick={sendChatMessage} disabled={chatTyping || !chatInput.trim()} id="btn-chat-send">Send</button>
-                </div>
+
+                {chatStep === 'category' && (
+                  <div className="chat-step-panel">
+                    <div className="chat-category-grid">
+                      {Object.entries(SECTOR_META).map(([id, sector]) => (
+                        <button key={id} className="chat-category-button" onClick={() => chooseChatCategory(id)}>
+                          <span className="chat-category-icon">{sector.icon}</span><span>{sector.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button className="chat-inline-link" onClick={() => setChatStep('freeform')}>Describe it in one message instead</button>
+                  </div>
+                )}
+
+                {chatStep === 'description' && (
+                  <div className="chat-input-row">
+                    <input className="chat-input" value={chatDescription} onChange={event => setChatDescription(event.target.value)}
+                      onKeyDown={event => event.key === 'Enter' && submitChatDescription()}
+                      placeholder="Describe the problem…" style={{ fontFamily: lang.font, direction: lang.dir }} />
+                    <button className="btn btn-primary btn-sm" onClick={submitChatDescription} disabled={!chatDescription.trim()}>Next</button>
+                  </div>
+                )}
+
+                {chatStep === 'location' && (
+                  <div className="chat-step-panel">
+                    <div className="chat-input-row">
+                      <input className="chat-input" value={chatLocation} onChange={event => setChatLocation(event.target.value)}
+                        onKeyDown={event => event.key === 'Enter' && submitChatLocation()}
+                        placeholder="Village, town, area, or district…" style={{ fontFamily: lang.font, direction: lang.dir }} />
+                      <button className="btn btn-primary btn-sm" onClick={submitChatLocation} disabled={!chatLocation.trim()}>Next</button>
+                    </div>
+                    <button className="btn btn-ghost btn-sm location-access-button" onClick={requestCurrentLocation} disabled={locationStatus === 'requesting'}>
+                      📍 {locationStatus === 'requesting' ? 'Finding your location…' : 'Use my current location'}
+                    </button>
+                    {locationStatus === 'success' && detectedArea && (
+                      <div className="location-suggestion">
+                        <span>Suggested location: <strong>{detectedArea}</strong></span>
+                        <button className="btn btn-primary btn-sm" onClick={useDetectedLocation}>Use this location</button>
+                      </div>
+                    )}
+                    {['denied', 'unavailable'].includes(locationStatus) && (
+                      <p className="location-message">{locationStatus === 'denied' ? 'Location access was not allowed. Enter the area above instead.' : 'Automatic location lookup is unavailable. Enter the area above instead.'}</p>
+                    )}
+                  </div>
+                )}
+
+                {chatStep === 'urgency' && (
+                  <div className="chat-category-grid chat-step-panel">
+                    {[
+                      ['High', '🔴', 'Needs immediate attention'],
+                      ['Medium', '🟠', 'Should be addressed soon'],
+                      ['Low', '🟢', 'Can be addressed routinely']
+                    ].map(([level, icon, description]) => (
+                      <button key={level} className="chat-category-button" onClick={() => chooseChatUrgency(level)}>
+                        <span className="chat-category-icon">{icon}</span><span><strong>{level}</strong><small>{description}</small></span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {chatStep === 'photo' && (
+                  <div className="chat-category-grid chat-step-panel">
+                    <button className="chat-category-button" onClick={() => document.getElementById('problem-image')?.click()}>
+                      <span className="chat-category-icon">📷</span><span>Add a photo</span>
+                    </button>
+                    <button className="chat-category-button" onClick={() => { setChatStep('review'); appendChatExchange('No photo', 'Review your report before submitting.') }}>
+                      <span className="chat-category-icon">→</span><span>Continue without photo</span>
+                    </button>
+                  </div>
+                )}
+
+                {chatStep === 'review' && (
+                  <div className="chat-review-card">
+                    <h3>Review your report</h3>
+                    <div className="chat-review-item"><strong>Category</strong><span>{SECTOR_META[chatCategory]?.icon} {SECTOR_META[chatCategory]?.name}</span></div>
+                    <div className="chat-review-item"><strong>Problem</strong><span>{chatDescription}</span></div>
+                    <div className="chat-review-item"><strong>Location</strong><span>📍 {chatLocation}</span></div>
+                    <div className="chat-review-item"><strong>Urgency</strong><span>{chatUrgency}</span></div>
+                    {imageFile && <div className="chat-review-item"><strong>Photo</strong><span>{imageFile.name}</span></div>}
+                    <div className="chat-review-actions">
+                      <button className="btn btn-primary" onClick={previewGuidedReport} disabled={loading}>{loading ? 'Analyzing…' : 'Review AI extraction'}</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => { resetGuidedChat(); removeImage(); setExtraction(null) }}>Start over</button>
+                    </div>
+                  </div>
+                )}
+
+                {chatStep === 'freeform' && (
+                  <div className="chat-input-row">
+                    <input className="chat-input" value={chatInput} onChange={event => setChatInput(event.target.value)}
+                      onKeyDown={event => event.key === 'Enter' && sendChatMessage()}
+                      placeholder={`Type in ${lang.nativeName}…`} style={{ fontFamily: lang.font, direction: lang.dir }} id="chat-input" />
+                    <button className="btn btn-primary btn-sm" onClick={sendChatMessage} disabled={chatTyping || !chatInput.trim()} id="btn-chat-send">Send</button>
+                    <button className="btn btn-ghost btn-sm" onClick={resetGuidedChat}>Guided</button>
+                  </div>
+                )}
               </div>
-            </>
+            </div>
           )}
         </div>
 

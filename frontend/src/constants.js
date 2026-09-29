@@ -33,4 +33,5 @@ export const SAMPLE_PROMPTS = {
   bn: "মুর্শিদাবাদ জেলার ভগবানগোলা ব্লকে স্বাস্থ্যকেন্দ্রে চিকিৎসক নেই এবং পানীয় জলের পাইপলাইন নষ্ট হয়ে গেছে।",
 }
 
-export const API_BASE = '/api'
+const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN || '').replace(/\/+$/, '')
+export const API_BASE = `${API_ORIGIN}/api`

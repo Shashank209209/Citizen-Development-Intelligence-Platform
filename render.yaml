@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: bharatpulse-api
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    initialDeployHook: python backend/database/seed.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bharatpulse-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+
+  - type: web
+    name: bharatpulse-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_ORIGIN
+        fromService:
+          name: bharatpulse-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  - name: bharatpulse-db
+    databaseName: bharatpulse
+    user: bharatpulse
+    plan: free
+    region: singapore

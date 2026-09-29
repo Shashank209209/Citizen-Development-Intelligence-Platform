@@ -21,22 +21,6 @@ function MiniBarChart({ data, colorKey = 'color', labelKey = 'name', valueKey = 
   )
 }
 
-function CountUp({ value }) {
-  const [displayValue, setDisplayValue] = useState(0)
-  useEffect(() => {
-    let frame
-    const started = performance.now()
-    const animate = (now) => {
-      const progress = Math.min((now - started) / 650, 1)
-      setDisplayValue(Math.round(value * (1 - (1 - progress) ** 3)))
-      if (progress < 1) frame = requestAnimationFrame(animate)
-    }
-    frame = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(frame)
-  }, [value])
-  return displayValue
-}
-
 function PriorityRing({ score, size = 72 }) {
   const radius = (size - 12) / 2
   const circ = 2 * Math.PI * radius
@@ -322,19 +306,19 @@ export default function DashboardPage() {
         <div className="fade-in">
           <div className="grid-4" style={{ marginBottom: 24 }}>
             <div className="stat-card">
-              <div className="stat-value"><CountUp value={totalRequests} /></div>
+              <div className="stat-value">{totalRequests}</div>
               <div className="stat-label">Citizen Requests (Synthetic)</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--danger)' }}><CountUp value={criticalHotspots} /></div>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}>{criticalHotspots}</div>
               <div className="stat-label">Critical Hotspots</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--accent)' }}><CountUp value={hotspots.length} /></div>
+              <div className="stat-value" style={{ color: 'var(--accent)' }}>{hotspots.length}</div>
               <div className="stat-label">Active Hotspots</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--success)' }}><CountUp value={adoptedRecs} /></div>
+              <div className="stat-value" style={{ color: 'var(--success)' }}>{adoptedRecs}</div>
               <div className="stat-label">Recommendations Adopted</div>
             </div>
           </div>

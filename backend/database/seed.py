@@ -18,15 +18,21 @@ from backend.adapters.india.investment_plans_data import INVESTMENT_PLANS
 from backend.core.analytics_engine import analytics_engine
 import uuid, datetime, random
 
-def seed_all():
+def seed_all(only_if_empty=False):
     print("[SEED] Initializing database schema...")
     init_db()
     db = SessionLocal()
 
+    models = [CitizenRequestModel, HotspotModel, RecommendationModel,
+              AuditLogModel, GeographyModel, DemographicsModel,
+              InfrastructureModel, InvestmentPlanModel, DatasetRegistryModel]
+    if only_if_empty and any(db.query(Model).first() for Model in models):
+        print("[SEED] Existing database data found; skipping demo seed to preserve it.")
+        db.close()
+        return
+
     print("[SEED] Clearing existing demo data...")
-    for Model in [CitizenRequestModel, HotspotModel, RecommendationModel,
-                  AuditLogModel, GeographyModel, DemographicsModel,
-                  InfrastructureModel, InvestmentPlanModel, DatasetRegistryModel]:
+    for Model in models:
         db.query(Model).delete()
     db.commit()
 
@@ -294,4 +300,4 @@ def seed_all():
     print("[SEED] ⚠️  REMINDER: All datasets are synthetic/demo data. No real government or PII data included.")
 
 if __name__ == "__main__":
-    seed_all()
+    seed_all(only_if_empty="--if-empty" in sys.argv)

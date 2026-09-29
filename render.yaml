@@ -5,9 +5,8 @@ services:
     plan: free
     region: singapore
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python backend/database/seed.py --if-empty && uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
-    initialDeployHook: python backend/database/seed.py
     envVars:
       - key: DATABASE_URL
         fromDatabase:

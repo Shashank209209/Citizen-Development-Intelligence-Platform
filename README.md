@@ -10,6 +10,8 @@ India Prototype · Digital Public Good · Apache-2.0
 - API: [bharatpulse-api.onrender.com](https://bharatpulse-api.onrender.com/)
 - API documentation: [bharatpulse-api.onrender.com/api/docs](https://bharatpulse-api.onrender.com/api/docs)
 
+> **First visit may take a little longer:** The demo API runs on Render's free plan and may need time to start after being idle. The dashboard can show a loading state while the API wakes and returns the synthetic demo data. This is expected and does not mean the data is missing or the app has failed.
+
 Demo accounts:
 
 | Role | Email | Password |
